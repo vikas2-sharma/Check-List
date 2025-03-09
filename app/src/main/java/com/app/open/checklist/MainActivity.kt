@@ -30,6 +30,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,6 +44,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.app.open.checklist.ui.theme.CheckListTheme
 import com.app.open.checklist.viewmodel.MainViewModel
@@ -96,25 +98,43 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
+fun Greeting(name: String, modifier: Modifier = Modifier, viewModel: MainViewModel = viewModel()) {
     Box(contentAlignment = Alignment.TopCenter, modifier = modifier) {
         Column {
-            Item(name, false)
-            Item(name, false)
-            Item(name, false)
+            Item(
+                name,
+                viewModel.uiState2.collectAsState().value.isTaskCompleted,
+                { viewModel.updateCheckStatusuiState2() }
+            )
+            Item(
+                name,
+                viewModel.uiState3.collectAsState().value.isTaskCompleted,
+                    { viewModel.updateCheckStatusuiState3() }
+            )
+            Item(
+                name,
+                viewModel.uiState.collectAsState().value.isTaskCompleted,
+                    { viewModel.updateCheckStatusuiState() }
+            )
             NewItem()
         }
     }
 }
 
 @Composable
-private fun Item(name: String, isCheckedRoot: Boolean = false) {
-    var isChecked by remember { mutableStateOf(isCheckedRoot) }
+private fun Item(
+    name: String,
+    isCheckedRoot: Boolean = false,
+    onCLick: () -> Unit,
+    viewModel: MainViewModel = viewModel()
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(10.dp, 5.dp),
-        onClick = { isChecked = !isChecked }
+        onClick = {
+            onCLick()
+        }
     ) {
 
         Row(
@@ -123,7 +143,9 @@ private fun Item(name: String, isCheckedRoot: Boolean = false) {
                 .fillMaxWidth()
                 .padding(10.dp)
         ) {
-            Checkbox(checked = isChecked, onCheckedChange = { isChecked = !isChecked })
+            Checkbox(checked = isCheckedRoot, onCheckedChange = {
+                onCLick()
+            })
             Text(
                 text = "Hello $name!", textAlign = TextAlign.Center
 
