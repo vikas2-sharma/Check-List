@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -30,6 +32,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -37,6 +40,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -53,8 +58,6 @@ private const val TAG = "MainActivity"
 
 class MainActivity : ComponentActivity() {
 
-    private val viewmodel: MainViewModel by viewModels()
-
 
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -63,26 +66,22 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             CheckListTheme {
-                Scaffold(
-                    modifier = Modifier.fillMaxSize(),
-                    topBar = {
-                        TopAppBar(
-                            title = {
-                                Text(
-                                    ContextCompat.getString(
-                                        this@MainActivity,
-                                        R.string.app_name
-                                    )
-                                )
-                            }
+                Scaffold(modifier = Modifier.fillMaxSize(), topBar = {
+                    TopAppBar(title = {
+                        Text(
+                            ContextCompat.getString(
+                                this@MainActivity, R.string.app_name
+                            )
                         )
-                    },
-                    floatingActionButton = {
-                        FloatingActionButton(onClick = {}, modifier = Modifier.padding(24.dp)) {
-                            Icon(Icons.Filled.Add, "Add new item")
-                        }
+                    })
+                }, floatingActionButton = {
+                    val viewModel: MainViewModel by viewModels()
+                    FloatingActionButton(onClick = {
+                        viewModel.toggleNewItemVisibility()
+                    }, modifier = Modifier.padding(24.dp)) {
+                        Icon(Icons.Filled.Add, "Add new item")
                     }
-                ) { innerPadding ->
+                }) { innerPadding ->
                     // Add padding to content to respect status bar and top app bar
                     Greeting(
                         name = "Android",
@@ -101,22 +100,38 @@ class MainActivity : ComponentActivity() {
 fun Greeting(name: String, modifier: Modifier = Modifier, viewModel: MainViewModel = viewModel()) {
     Box(contentAlignment = Alignment.TopCenter, modifier = modifier) {
         Column {
-            Item(
-                name,
-                viewModel.uiState2.collectAsState().value.isTaskCompleted,
-                { viewModel.updateCheckStatusuiState2() }
-            )
-            Item(
-                name,
-                viewModel.uiState3.collectAsState().value.isTaskCompleted,
-                    { viewModel.updateCheckStatusuiState3() }
-            )
-            Item(
-                name,
-                viewModel.uiState.collectAsState().value.isTaskCompleted,
-                    { viewModel.updateCheckStatusuiState() }
-            )
+//            Item(
+//                name,
+//                viewModel.uiState2.collectAsState().value.isTaskCompleted,
+//                { viewModel.updateCheckStatusuiState2() }
+//            )
+//            Item(
+//                name,
+//                viewModel.uiState3.collectAsState().value.isTaskCompleted,
+//                { viewModel.updateCheckStatusuiState3() }
+//            )
+//            Item(
+//                name,
+//                viewModel.uiState.collectAsState().value.isTaskCompleted,
+//                { viewModel.updateCheckStatusuiState() }
+//            )
+
+            TaskListScreen()
+
             NewItem()
+        }
+    }
+}
+
+@Composable
+fun TaskListScreen(viewModel: MainViewModel = viewModel()) {
+    val uiState by viewModel.uiStateList.collectAsState();
+
+    LazyColumn {
+        itemsIndexed(items = uiState) { index, taskItem ->
+            Item(name = taskItem.taskName,
+                isCheckedRoot = taskItem.isTaskCompleted,
+                { viewModel.toggleTaskCompletion(index) })
         }
     }
 }
@@ -128,14 +143,11 @@ private fun Item(
     onCLick: () -> Unit,
     viewModel: MainViewModel = viewModel()
 ) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(10.dp, 5.dp),
-        onClick = {
-            onCLick()
-        }
-    ) {
+    Card(modifier = Modifier
+        .fillMaxWidth()
+        .padding(10.dp, 5.dp), onClick = {
+        onCLick()
+    }) {
 
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -147,7 +159,7 @@ private fun Item(
                 onCLick()
             })
             Text(
-                text = "Hello $name!", textAlign = TextAlign.Center
+                text = name, textAlign = TextAlign.Center
 
             )
         }
@@ -156,36 +168,44 @@ private fun Item(
 
 
 @Composable
-private fun NewItem() {
-    var text by remember { mutableStateOf("") }
-    val keyboardController = LocalSoftwareKeyboardController.current
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(10.dp, 5.dp),
-        onClick = {}
-    ) {
+private fun NewItem(viewModel: MainViewModel = viewModel()) {
 
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(10.dp)
-        ) {
-            TextField(
-                value = text,
-                onValueChange = { text = it },
-                placeholder = { Text("Enter new item") },
-                keyboardOptions = KeyboardOptions.Default.copy(
-                    imeAction = ImeAction.Done
-                ),
-                keyboardActions = KeyboardActions(
-                    onDone = {
+    val newItemVisibility by viewModel.newItemVisible.collectAsState()
+    Log.d(TAG, "NewItem: newItemVisibility: $newItemVisibility")
+    if (newItemVisibility) {
+        var text by remember { mutableStateOf("") }
+        val focusRequester = remember { FocusRequester() }
+        val keyboardController = LocalSoftwareKeyboardController.current
+        Card(modifier = Modifier
+            .fillMaxWidth()
+            .padding(10.dp, 5.dp), onClick = {}) {
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(10.dp)
+            ) {
+                TextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    placeholder = { Text("Enter new item") },
+                    keyboardOptions = KeyboardOptions.Default.copy(
+                        imeAction = ImeAction.Done
+                    ),
+                    keyboardActions = KeyboardActions(onDone = {
                         Log.d(TAG, "NewItem: new task done")
                         keyboardController?.hide()
-                    }
+                        viewModel.addTask(text)
+                        text = ""
+                        viewModel.toggleNewItemVisibility()
+                    }),
+                    modifier = Modifier.focusRequester(focusRequester)
                 )
-            )
+            }
+        }
+        LaunchedEffect(Unit) {
+            focusRequester.requestFocus()
         }
     }
 }
