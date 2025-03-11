@@ -2,13 +2,10 @@ package com.app.open.checklist
 
 import android.os.Bundle
 import android.util.Log
-import android.view.View
-import android.widget.EditText
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -21,12 +18,12 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardColors
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -49,9 +46,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.lifecycle.viewmodel.viewModelFactory
 import com.app.open.checklist.ui.theme.CheckListTheme
 import com.app.open.checklist.viewmodel.MainViewModel
 import dagger.hilt.android.AndroidEntryPoint
@@ -71,11 +66,13 @@ class MainActivity : ComponentActivity() {
             CheckListTheme {
                 Scaffold(modifier = Modifier.fillMaxSize(), topBar = {
                     TopAppBar(title = {
-                        Text(
-                            ContextCompat.getString(
-                                this@MainActivity, R.string.app_name
+                        Row {
+                            Text(
+                                ContextCompat.getString(
+                                    this@MainActivity, R.string.app_name
+                                )
                             )
-                        )
+                        }
                     })
                 }, floatingActionButton = {
                     val viewModel: MainViewModel by viewModels()
@@ -87,7 +84,7 @@ class MainActivity : ComponentActivity() {
 
                 }) { innerPadding ->
                     // Add padding to content to respect status bar and top app bar
-                    Greeting(
+                    MainScreen(
                         name = "Android",
                         modifier = Modifier
                             .fillMaxSize()
@@ -101,30 +98,38 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun Greeting(name: String, modifier: Modifier = Modifier, viewModel: MainViewModel = viewModel()) {
-    Box(contentAlignment = Alignment.TopCenter, modifier = modifier) {
+fun MainScreen(
+    name: String, modifier: Modifier = Modifier, viewModel: MainViewModel = viewModel()
+) {
+    Box(
+        contentAlignment = Alignment.TopCenter, modifier = modifier.fillMaxSize(
+        )
+    ) {
         Column {
-//            Item(
-//                name,
-//                viewModel.uiState2.collectAsState().value.isTaskCompleted,
-//                { viewModel.updateCheckStatusuiState2() }
-//            )
-//            Item(
-//                name,
-//                viewModel.uiState3.collectAsState().value.isTaskCompleted,
-//                { viewModel.updateCheckStatusuiState3() }
-//            )
-//            Item(
-//                name,
-//                viewModel.uiState.collectAsState().value.isTaskCompleted,
-//                { viewModel.updateCheckStatusuiState() }
-//            )
-
             TaskListScreen()
-
             NewItem()
         }
+        if (viewModel.deleteButtonVisible.collectAsState().value) {
+            Button(
+                onClick = {
+                    Log.d(TAG, "button to delete: ")
+                    viewModel.deleteTasks()
+                    viewModel.toggleDeleteButtonVisibility()
+                },
+                modifier = Modifier
+                    .padding(50.dp)
+                    .align(Alignment.BottomCenter)
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Delete,
+                    contentDescription = "Delete",
+                    modifier = Modifier.padding(8.dp)
+                )
+            }
+        }
+
     }
+
 }
 
 @Composable
@@ -135,7 +140,11 @@ fun TaskListScreen(viewModel: MainViewModel = viewModel()) {
         itemsIndexed(items = uiState) { index, taskItem ->
             Item(name = taskItem.taskName,
                 isCheckedRoot = taskItem.isTaskCompleted,
-                { viewModel.toggleTaskCompletion(index) })
+                onCLick = {
+                    viewModel.toggleTaskCompletion(index)
+                    viewModel.toggleDeleteButtonVisibility()
+                }
+            )
         }
     }
 }
@@ -218,6 +227,6 @@ private fun NewItem(viewModel: MainViewModel = viewModel()) {
 @Composable
 fun GreetingPreview() {
     CheckListTheme {
-        Greeting("Android")
+        MainScreen("Android")
     }
 }

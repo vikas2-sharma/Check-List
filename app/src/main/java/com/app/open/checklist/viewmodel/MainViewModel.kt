@@ -23,6 +23,18 @@ class MainViewModel @Inject constructor(private val dataStore: TaskDataStore) : 
     private val _newItemVisible = MutableStateFlow(false)
     val newItemVisible: StateFlow<Boolean> = _newItemVisible.asStateFlow()
 
+
+    private val _deleteButtonVisible = MutableStateFlow(false)
+    val deleteButtonVisible: StateFlow<Boolean> = _deleteButtonVisible.asStateFlow()
+
+
+    fun toggleDeleteButtonVisibility() {
+        _deleteButtonVisible.update {
+            val checkedItems = uiStateList.value.filter { item -> item.isTaskCompleted }
+            checkedItems.isNotEmpty()
+        }
+    }
+
     fun toggleNewItemVisibility() {
         _newItemVisible.update { currentValue ->
             !currentValue
@@ -30,7 +42,8 @@ class MainViewModel @Inject constructor(private val dataStore: TaskDataStore) : 
     }
 
     init {
-        viewModelScope.launch {
+        toggleDeleteButtonVisibility()
+        viewModelScope.launch(Dispatchers.IO) {
             dataStore.tasksFlow.collect { savedTasks ->
                 _uiStateList.value = savedTasks
             }
@@ -41,11 +54,21 @@ class MainViewModel @Inject constructor(private val dataStore: TaskDataStore) : 
     // Add a new task
     fun addTask(taskName: String) {
         _uiStateList.update { currentList ->
-            CoroutineScope(Dispatchers.IO).launch {
+            viewModelScope.launch(Dispatchers.IO) {
                 dataStore.saveTasks(currentList + TaskItem(taskName = taskName))
             }
             currentList + TaskItem(taskName = taskName)
 
+        }
+    }
+
+    fun deleteTasks() {
+        _uiStateList.update { currentList ->
+            val newTaskList = currentList.filter { item -> !item.isTaskCompleted }
+            viewModelScope.launch(Dispatchers.IO) {
+                dataStore.saveTasks(newTaskList)
+            }
+            newTaskList
         }
     }
 
@@ -61,9 +84,13 @@ class MainViewModel @Inject constructor(private val dataStore: TaskDataStore) : 
     // Toggle the completion status of a task at a specific index
     fun toggleTaskCompletion(index: Int) {
         _uiStateList.update { currentList ->
-            currentList.mapIndexed { i, task ->
+            val newTaskList = currentList.mapIndexed { i, task ->
                 if (i == index) task.copy(isTaskCompleted = !task.isTaskCompleted) else task
             }
+            viewModelScope.launch {
+                dataStore.saveTasks(newTaskList)
+            }
+            newTaskList
         }
     }
 
