@@ -27,6 +27,11 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            resValue("string", "app_name", "Check List") // Name for Debug
+        }
+        debug {
+            applicationIdSuffix = ".debug"
+            resValue("string", "app_name", "Check List Debug") // Name for Debug
         }
     }
     compileOptions {
