@@ -1,4 +1,4 @@
-package com.app.open.checklist.data
+package com.app.open.checklist.model
 
 data class TaskItem(
     val taskName:String = "",

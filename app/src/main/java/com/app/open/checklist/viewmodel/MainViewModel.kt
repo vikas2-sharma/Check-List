@@ -1,15 +1,21 @@
 package com.app.open.checklist.viewmodel
 
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
-import com.app.open.checklist.data.TaskItem
+import androidx.lifecycle.viewModelScope
+import com.app.open.checklist.data.TaskDataStore
+import com.app.open.checklist.model.TaskItem
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class MainViewModel : ViewModel() {
+@HiltViewModel
+class MainViewModel @Inject constructor(private val dataStore: TaskDataStore) : ViewModel() {
     private val _uiStateList = MutableStateFlow<List<TaskItem>>(emptyList())
     val uiStateList: StateFlow<List<TaskItem>> = _uiStateList.asStateFlow()
 
@@ -24,16 +30,22 @@ class MainViewModel : ViewModel() {
     }
 
     init {
-        addTask("This is a task")
-        addTask("This is a task 2")
-        addTask("This is a task 3")
+        viewModelScope.launch {
+            dataStore.tasksFlow.collect { savedTasks ->
+                _uiStateList.value = savedTasks
+            }
+        }
     }
 
 
     // Add a new task
     fun addTask(taskName: String) {
         _uiStateList.update { currentList ->
+            CoroutineScope(Dispatchers.IO).launch {
+                dataStore.saveTasks(currentList + TaskItem(taskName = taskName))
+            }
             currentList + TaskItem(taskName = taskName)
+
         }
     }
 

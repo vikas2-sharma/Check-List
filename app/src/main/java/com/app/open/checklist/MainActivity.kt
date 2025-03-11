@@ -25,6 +25,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardColors
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
@@ -78,11 +79,12 @@ class MainActivity : ComponentActivity() {
                     })
                 }, floatingActionButton = {
                     val viewModel: MainViewModel by viewModels()
-                    FloatingActionButton(onClick = {
-                        viewModel.toggleNewItemVisibility()
-                    }, modifier = Modifier.padding(24.dp)) {
-                        Icon(Icons.Filled.Add, "Add new item")
-                    }
+                    ExtendedFloatingActionButton(
+                        onClick = { viewModel.toggleNewItemVisibility() },
+                        icon = { Icon(Icons.Filled.Add, "Add new item") },
+                        text = { Text(text = "Add New") },
+                    )
+
                 }) { innerPadding ->
                     // Add padding to content to respect status bar and top app bar
                     Greeting(

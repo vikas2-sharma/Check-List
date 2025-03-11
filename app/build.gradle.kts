@@ -56,6 +56,10 @@ android {
 
 dependencies {
 
+    // https://mvnrepository.com/artifact/com.google.code.gson/gson
+    implementation(libs.gson)
+
+    implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
