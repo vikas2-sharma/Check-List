@@ -6,6 +6,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,10 +15,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.outlined.DateRange
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -25,6 +28,7 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -35,12 +39,14 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -50,6 +56,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.app.open.checklist.ui.theme.CheckListTheme
 import com.app.open.checklist.viewmodel.MainViewModel
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 private const val TAG = "MainActivity"
 
@@ -65,23 +74,24 @@ class MainActivity : ComponentActivity() {
         setContent {
             CheckListTheme {
                 Scaffold(modifier = Modifier.fillMaxSize(), topBar = {
-                    TopAppBar(title = {
-                        Row {
-                            Text(
-                                ContextCompat.getString(
-                                    this@MainActivity, R.string.app_name
+                    TopAppBar(
+                        title = {
+                            Row {
+                                Text(
+                                    ContextCompat.getString(
+                                        this@MainActivity, R.string.app_name
+                                    )
                                 )
-                            )
+                            }
+                        },
+                        actions = {
+                            IconButton(
+                                onClick = { Log.d(TAG, "onCreate: history")}
+                            ) {
+                                Icon(painterResource(R.drawable.baseline_history_24), "history")
+                            }
                         }
-                    })
-                }, floatingActionButton = {
-                    val viewModel: MainViewModel by viewModels()
-                    ExtendedFloatingActionButton(
-                        onClick = { viewModel.toggleNewItemVisibility() },
-                        icon = { Icon(Icons.Filled.Add, "Add new item") },
-                        text = { Text(text = "Add New") },
                     )
-
                 }) { innerPadding ->
                     // Add padding to content to respect status bar and top app bar
                     MainScreen(
@@ -107,7 +117,6 @@ fun MainScreen(
     ) {
         Column {
             TaskListScreen()
-            NewItem()
         }
         if (viewModel.deleteButtonVisible.collectAsState().value) {
             Button(
@@ -135,17 +144,38 @@ fun MainScreen(
 @Composable
 fun TaskListScreen(viewModel: MainViewModel = viewModel()) {
     val uiState by viewModel.uiStateList.collectAsState();
-
-    LazyColumn {
-        itemsIndexed(items = uiState) { index, taskItem ->
-            Item(name = taskItem.taskName,
-                isCheckedRoot = taskItem.isTaskCompleted,
-                onCLick = {
-                    viewModel.toggleTaskCompletion(index)
-                    viewModel.toggleDeleteButtonVisibility()
+    val listState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column {
+            NewItem()
+            LazyColumn(state = listState) {
+                itemsIndexed(items = uiState) { index, taskItem ->
+                    Item(name = "${index + 1}. ${taskItem.taskName}",
+                        isCheckedRoot = taskItem.isTaskCompleted,
+                        onCLick = {
+                            viewModel.toggleTaskCompletion(index)
+                            viewModel.toggleDeleteButtonVisibility()
+                        }
+                    )
                 }
-            )
+            }
         }
+        ExtendedFloatingActionButton(
+            onClick = {
+                coroutineScope.launch {
+//                    listState.scrollToItem(0)
+//                    listState.animateScrollBy(500f)
+//                    delay(2000)
+                    viewModel.toggleNewItemVisibility()
+                }
+            },
+            icon = { Icon(Icons.Filled.Add, "Add new item") },
+            text = { Text(text = "Add New") },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(24.dp)
+        )
     }
 }
 
@@ -192,7 +222,6 @@ private fun NewItem(viewModel: MainViewModel = viewModel()) {
         Card(modifier = Modifier
             .fillMaxWidth()
             .padding(10.dp, 5.dp), onClick = {}) {
-
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
@@ -209,7 +238,9 @@ private fun NewItem(viewModel: MainViewModel = viewModel()) {
                     keyboardActions = KeyboardActions(onDone = {
                         Log.d(TAG, "NewItem: new task done")
                         keyboardController?.hide()
-                        viewModel.addTask(text)
+                        if (text.isNotBlank()) {
+                            viewModel.addTask(text)
+                        }
                         text = ""
                         viewModel.toggleNewItemVisibility()
                     }),
